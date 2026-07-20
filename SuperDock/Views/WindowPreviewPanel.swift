@@ -224,10 +224,13 @@ private struct WindowCard: View {
                     }
                     Text(preview.title)
                         .lineLimit(1)
+                        .truncationMode(.tail)
                 }
                 .font(.caption)
                 .foregroundStyle(.primary)
+                .frame(width: 212, alignment: .leading)
             }
+            .frame(width: 212, alignment: .leading)
             .padding(6)
             .background {
                 RoundedRectangle(cornerRadius: 11, style: .continuous)

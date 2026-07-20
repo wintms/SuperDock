@@ -41,11 +41,13 @@ final class PreviewPanelController: NSObject, NSWindowDelegate {
     func show(
         target: DockTarget,
         windows: [WindowPreview],
-        onSelect: @escaping (WindowPreview) -> Void
+        onSelect: @escaping (WindowPreview) -> Void,
+        onClose: @escaping (WindowPreview) -> Void
     ) {
         model.applicationName = target.applicationName
         model.windows = windows
         model.onSelect = onSelect
+        model.onClose = onClose
 
         let itemFrame = cocoaFrame(fromAccessibilityFrame: target.dockItemFrame)
         // Include breathing room for the card's hover scale and shadow so the
@@ -55,6 +57,15 @@ final class PreviewPanelController: NSObject, NSWindowDelegate {
         let origin = panelOrigin(size: CGSize(width: width, height: height), dockItemFrame: itemFrame)
         panel.setFrame(CGRect(origin: origin, size: CGSize(width: width, height: height)), display: true)
         panel.orderFrontRegardless()
+    }
+
+    var isVisible: Bool { panel.isVisible }
+
+    func removeWindow(id: CGWindowID) {
+        model.windows.removeAll { $0.id == id }
+        if model.windows.isEmpty {
+            hide()
+        }
     }
 
     func hide() {
@@ -117,6 +128,7 @@ private final class PreviewPanelModel: ObservableObject {
     @Published var applicationName = ""
     @Published var windows: [WindowPreview] = []
     var onSelect: ((WindowPreview) -> Void)?
+    var onClose: ((WindowPreview) -> Void)?
 }
 
 private struct WindowPreviewPanelView: View {
@@ -142,9 +154,11 @@ private struct WindowPreviewPanelView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 12) {
                         ForEach(model.windows) { preview in
-                            WindowCard(preview: preview) {
-                                model.onSelect?(preview)
-                            }
+                            WindowCard(
+                                preview: preview,
+                                onSelect: { model.onSelect?(preview) },
+                                onClose: { model.onClose?(preview) }
+                            )
                         }
                     }
                     // Hovered cards move up, scale, and cast a shadow. Keep all
@@ -192,66 +206,94 @@ private struct PreviewPanelSurface: ViewModifier {
 private struct WindowCard: View {
     @ObservedObject var preview: WindowPreview
     let onSelect: () -> Void
+    let onClose: () -> Void
     @State private var isHovering = false
 
     var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 7) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .fill(Color.black.opacity(0.24))
+        ZStack(alignment: .topLeading) {
+            Button(action: onSelect) {
+                cardContent
+            }
+            .buttonStyle(.plain)
+            .focusEffectDisabled()
 
-                    if let image = preview.image {
-                        Image(nsImage: image)
-                            .resizable()
-                            .scaledToFit()
-                    } else {
-                        VStack(spacing: 7) {
-                            Image(systemName: preview.isMinimized ? "macwindow.badge.minus" : "macwindow")
-                                .font(.system(size: 30))
-                            Text(preview.isMinimized ? "窗口已最小化" : "无法读取缩略图")
-                                .font(.caption2)
-                        }
-                        .foregroundStyle(.secondary)
+            if isHovering, preview.closeButton != nil {
+                Button(action: onClose) {
+                    ZStack {
+                        Circle()
+                            .fill(.red.opacity(0.86))
+                        Image(systemName: "xmark")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.white)
                     }
+                    .frame(width: 22, height: 22)
+                    .contentShape(Circle())
+                    .shadow(color: .black.opacity(0.22), radius: 3, y: 1)
                 }
-                .frame(width: 212, height: 132)
-                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-
-                HStack(spacing: 5) {
-                    if preview.isMinimized {
-                        Image(systemName: "minus.square")
-                    }
-                    Text(preview.title)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-                .font(.caption)
-                .foregroundStyle(.primary)
-                .frame(width: 212, alignment: .leading)
+                .buttonStyle(.plain)
+                .focusEffectDisabled()
+                .offset(x: 12, y: 12)
+                .transition(.scale(scale: 0.82).combined(with: .opacity))
+                .help("关闭窗口")
+                .accessibilityLabel("关闭 \(preview.title)")
             }
-            .frame(width: 212, alignment: .leading)
-            .padding(6)
-            .background {
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(.white.opacity(isHovering ? 0.16 : 0))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .strokeBorder(.white.opacity(isHovering ? 0.28 : 0), lineWidth: 0.75)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
-            .shadow(
-                color: .black.opacity(isHovering ? 0.16 : 0),
-                radius: isHovering ? 8 : 0,
-                y: isHovering ? 4 : 0
-            )
-            .scaleEffect(isHovering ? 1.015 : 1)
-            .offset(y: isHovering ? -2 : 0)
         }
-        .buttonStyle(.plain)
-        .focusEffectDisabled()
         .onHover { isHovering = $0 }
         .animation(.easeOut(duration: 0.16), value: isHovering)
+    }
+
+    private var cardContent: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(Color.black.opacity(0.24))
+
+                if let image = preview.image {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFit()
+                } else {
+                    VStack(spacing: 7) {
+                        Image(systemName: preview.isMinimized ? "macwindow.badge.minus" : "macwindow")
+                            .font(.system(size: 30))
+                        Text(preview.isMinimized ? "窗口已最小化" : "无法读取缩略图")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 212, height: 132)
+            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+
+            HStack(spacing: 5) {
+                if preview.isMinimized {
+                    Image(systemName: "minus.square")
+                }
+                Text(preview.title)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .font(.caption)
+            .foregroundStyle(.primary)
+            .frame(width: 212, alignment: .leading)
+        }
+        .frame(width: 212, alignment: .leading)
+        .padding(6)
+        .background {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(.white.opacity(isHovering ? 0.16 : 0))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .strokeBorder(.white.opacity(isHovering ? 0.28 : 0), lineWidth: 0.75)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .shadow(
+            color: .black.opacity(isHovering ? 0.16 : 0),
+            radius: isHovering ? 8 : 0,
+            y: isHovering ? 4 : 0
+        )
+        .scaleEffect(isHovering ? 1.015 : 1)
+        .offset(y: isHovering ? -2 : 0)
     }
 }

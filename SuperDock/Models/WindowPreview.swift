@@ -17,6 +17,7 @@ final class WindowPreview: ObservableObject, Identifiable {
     let frame: CGRect
     let isMinimized: Bool
     let accessibilityElement: AXUIElement
+    let closeButton: AXUIElement?
     @Published var image: NSImage?
 
     init(
@@ -26,6 +27,7 @@ final class WindowPreview: ObservableObject, Identifiable {
         frame: CGRect,
         isMinimized: Bool,
         accessibilityElement: AXUIElement,
+        closeButton: AXUIElement?,
         image: NSImage? = nil
     ) {
         self.id = id
@@ -34,6 +36,7 @@ final class WindowPreview: ObservableObject, Identifiable {
         self.frame = frame
         self.isMinimized = isMinimized
         self.accessibilityElement = accessibilityElement
+        self.closeButton = closeButton
         self.image = image
     }
 }

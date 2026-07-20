@@ -98,11 +98,27 @@ final class AppModel: ObservableObject {
             return
         }
 
-        panelController.show(target: target, windows: windows) { [weak self] preview in
-            guard let self else { return }
-            self.windowService.activate(preview, processIdentifier: target.processIdentifier)
-            self.panelController.hide()
-        }
+        panelController.show(
+            target: target,
+            windows: windows,
+            onSelect: { [weak self] preview in
+                guard let self else { return }
+                self.windowService.activate(preview, processIdentifier: target.processIdentifier)
+                self.panelController.hide()
+            },
+            onClose: { [weak self] preview in
+                guard let self, self.windowService.close(preview) else { return }
+                self.panelController.removeWindow(id: preview.id)
+
+                // Some apps close asynchronously (or present a save dialog).
+                // Re-read Accessibility state so the preview stays accurate.
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .milliseconds(220))
+                    guard let self, self.panelController.isVisible else { return }
+                    await self.showPreview(for: target)
+                }
+            }
+        )
 
         guard ScreenshotService.hasPermission else {
             hasScreenRecordingPermission = false

@@ -20,6 +20,7 @@ final class WindowService {
 
             let title: String = axAttribute(element, kAXTitleAttribute as CFString) ?? "Untitled Window"
             let minimized: Bool = axAttribute(element, kAXMinimizedAttribute as CFString) ?? false
+            let closeButton: AXUIElement? = axAttribute(element, kAXCloseButtonAttribute as CFString)
             let match = bestCGWindowMatch(title: title, frame: frame, candidates: cgWindows)
 
             // A stable synthetic ID keeps minimized/unexposed windows in the list.
@@ -30,9 +31,16 @@ final class WindowService {
                 title: title.isEmpty ? "Untitled Window" : title,
                 frame: frame,
                 isMinimized: minimized,
-                accessibilityElement: element
+                accessibilityElement: element,
+                closeButton: closeButton
             )
         }
+    }
+
+    @discardableResult
+    func close(_ preview: WindowPreview) -> Bool {
+        guard let closeButton = preview.closeButton else { return false }
+        return AXUIElementPerformAction(closeButton, kAXPressAction as CFString) == .success
     }
 
     func activate(_ preview: WindowPreview, processIdentifier: pid_t) {

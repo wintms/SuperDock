@@ -18,6 +18,7 @@ final class AppModel: ObservableObject {
     private var hoverTask: Task<Void, Never>?
     private var hideTask: Task<Void, Never>?
     private var isPointerInsidePanel = false
+    private var thumbnailCache: [CachedWindowThumbnail] = []
 
     init() {
         monitor.onTargetChanged = { [weak self] target in
@@ -98,6 +99,16 @@ final class AppModel: ObservableObject {
             return
         }
 
+        // Reuse the most recent successful capture immediately. This is what
+        // lets minimized windows keep a useful preview even though WindowServer
+        // may no longer expose their live pixels to ScreenCaptureKit.
+        for preview in windows {
+            preview.image = cachedThumbnail(
+                for: preview,
+                processIdentifier: target.processIdentifier
+            )
+        }
+
         panelController.show(
             target: target,
             windows: windows,
@@ -129,13 +140,100 @@ final class AppModel: ObservableObject {
         hasScreenRecordingPermission = true
         for preview in windows where !preview.isMinimized {
             guard let captureWindowID = preview.captureWindowID else { continue }
-            Task { @MainActor in
-                preview.image = await ScreenshotService.capture(
+            Task { @MainActor [weak self] in
+                guard let image = await ScreenshotService.capture(
                     windowID: captureWindowID,
                     sourceSize: preview.frame.size
+                ) else { return }
+
+                preview.image = image
+                self?.storeThumbnail(
+                    image,
+                    for: preview,
+                    processIdentifier: target.processIdentifier
                 )
             }
         }
+    }
+
+    private func cachedThumbnail(
+        for preview: WindowPreview,
+        processIdentifier: pid_t
+    ) -> NSImage? {
+        pruneThumbnailCache()
+
+        let candidates = thumbnailCache.filter { $0.processIdentifier == processIdentifier }
+        if let windowID = preview.captureWindowID,
+           let exact = candidates.first(where: { $0.windowID == windowID }) {
+            return exact.image
+        }
+
+        guard let closest = candidates.min(by: {
+            thumbnailMatchScore($0, preview: preview) < thumbnailMatchScore($1, preview: preview)
+        }) else { return nil }
+
+        let frameDistance = thumbnailFrameDistance(closest.frame, preview.frame)
+        // Titles generally remain stable while a window is minimized. If an
+        // app changes the title, only accept an almost identical saved frame
+        // to avoid borrowing a sibling window's thumbnail.
+        if closest.title == preview.title {
+            return frameDistance <= 240 ? closest.image : nil
+        }
+        return frameDistance <= 12 ? closest.image : nil
+    }
+
+    private func storeThumbnail(
+        _ image: NSImage,
+        for preview: WindowPreview,
+        processIdentifier: pid_t
+    ) {
+        let entry = CachedWindowThumbnail(
+            processIdentifier: processIdentifier,
+            windowID: preview.captureWindowID,
+            title: preview.title,
+            frame: preview.frame,
+            image: image,
+            updatedAt: Date()
+        )
+
+        if let index = thumbnailCache.firstIndex(where: { cached in
+            guard cached.processIdentifier == processIdentifier else { return false }
+            if let windowID = preview.captureWindowID, cached.windowID == windowID {
+                return true
+            }
+            return cached.title == preview.title
+                && thumbnailFrameDistance(cached.frame, preview.frame) <= 12
+        }) {
+            thumbnailCache[index] = entry
+        } else {
+            thumbnailCache.append(entry)
+        }
+
+        pruneThumbnailCache()
+        if thumbnailCache.count > 80 {
+            thumbnailCache.sort { $0.updatedAt > $1.updatedAt }
+            thumbnailCache.removeLast(thumbnailCache.count - 80)
+        }
+    }
+
+    private func pruneThumbnailCache() {
+        let expiration = Date().addingTimeInterval(-30 * 60)
+        thumbnailCache.removeAll { $0.updatedAt < expiration }
+    }
+
+    private func thumbnailMatchScore(
+        _ cached: CachedWindowThumbnail,
+        preview: WindowPreview
+    ) -> CGFloat {
+        (cached.title == preview.title ? 0 : 400)
+            + thumbnailFrameDistance(cached.frame, preview.frame)
+    }
+
+    private func thumbnailFrameDistance(_ lhs: CGRect, _ rhs: CGRect) -> CGFloat {
+        abs(lhs.minX - rhs.minX)
+            + abs(lhs.minY - rhs.minY)
+            + abs(lhs.width - rhs.width)
+            + abs(lhs.height - rhs.height)
     }
 
     private func panelPointerPresenceChanged(_ inside: Bool) {
@@ -163,4 +261,13 @@ final class AppModel: ObservableObject {
             self?.panelController.hide()
         }
     }
+}
+
+private struct CachedWindowThumbnail {
+    let processIdentifier: pid_t
+    let windowID: CGWindowID?
+    let title: String
+    let frame: CGRect
+    let image: NSImage
+    let updatedAt: Date
 }

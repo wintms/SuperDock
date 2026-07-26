@@ -11,6 +11,7 @@ final class WindowService {
         }
 
         let cgWindows = cgWindowDescriptions(for: processIdentifier)
+        let untitledWindow = String(localized: "window.untitled")
 
         return elements.compactMap { element in
             let role: String? = axAttribute(element, kAXRoleAttribute as CFString)
@@ -18,7 +19,7 @@ final class WindowService {
                   let frame = axFrame(element),
                   frame.width >= 80, frame.height >= 60 else { return nil }
 
-            let title: String = axAttribute(element, kAXTitleAttribute as CFString) ?? "Untitled Window"
+            let title: String = axAttribute(element, kAXTitleAttribute as CFString) ?? untitledWindow
             let minimized: Bool = axAttribute(element, kAXMinimizedAttribute as CFString) ?? false
             let closeButton: AXUIElement? = axAttribute(element, kAXCloseButtonAttribute as CFString)
             let match = bestCGWindowMatch(title: title, frame: frame, candidates: cgWindows)
@@ -28,7 +29,7 @@ final class WindowService {
             return WindowPreview(
                 id: match?.id ?? fallback,
                 captureWindowID: match?.id,
-                title: title.isEmpty ? "Untitled Window" : title,
+                title: title.isEmpty ? untitledWindow : title,
                 frame: frame,
                 isMinimized: minimized,
                 accessibilityElement: element,

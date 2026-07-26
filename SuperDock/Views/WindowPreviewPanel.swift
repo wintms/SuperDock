@@ -141,14 +141,14 @@ private struct WindowPreviewPanelView: View {
                 Text(model.applicationName)
                     .font(.headline)
                 Spacer()
-                Text("\(model.windows.count) 个窗口")
+                Text(windowCountText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 4)
 
             if model.windows.isEmpty {
-                ContentUnavailableView("没有可预览的窗口", systemImage: "macwindow")
+                ContentUnavailableView("preview.empty", systemImage: "macwindow")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -173,6 +173,14 @@ private struct WindowPreviewPanelView: View {
         .padding(.vertical, 10)
         .modifier(PreviewPanelSurface())
         .onHover(perform: onPointerPresenceChanged)
+    }
+
+    private var windowCountText: String {
+        let count = model.windows.count
+        let format = count == 1
+            ? String(localized: "preview.windowCount.one")
+            : String(localized: "preview.windowCount.other")
+        return String.localizedStringWithFormat(format, Int64(count))
     }
 }
 
@@ -234,8 +242,15 @@ private struct WindowCard: View {
                 .focusEffectDisabled()
                 .offset(x: 12, y: 12)
                 .transition(.scale(scale: 0.82).combined(with: .opacity))
-                .help("关闭窗口")
-                .accessibilityLabel("关闭 \(preview.title)")
+                .help(String(localized: "window.close"))
+                .accessibilityLabel(
+                    Text(
+                        String.localizedStringWithFormat(
+                            String(localized: "accessibility.closeWindow"),
+                            preview.title
+                        )
+                    )
+                )
             }
         }
         .onHover { isHovering = $0 }
@@ -256,8 +271,13 @@ private struct WindowCard: View {
                     VStack(spacing: 7) {
                         Image(systemName: preview.isMinimized ? "macwindow.badge.minus" : "macwindow")
                             .font(.system(size: 30))
-                        Text(preview.isMinimized ? "窗口已最小化" : "无法读取缩略图")
-                            .font(.caption2)
+                        if preview.isMinimized {
+                            Text("preview.minimized")
+                                .font(.caption2)
+                        } else {
+                            Text("preview.unavailable")
+                                .font(.caption2)
+                        }
                     }
                     .foregroundStyle(.secondary)
                 }

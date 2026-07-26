@@ -35,27 +35,27 @@ private struct MenuContentView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Toggle("Enable", isOn: $model.isEnabled)
+                Toggle("menu.enable", isOn: $model.isEnabled)
                     .labelsHidden()
             }
 
             if !model.hasAccessibilityPermission {
-                Label("需要“辅助功能”权限来识别 Dock 和激活窗口。", systemImage: "hand.raised.fill")
+                Label("permission.accessibility.description", systemImage: "hand.raised.fill")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Button("授予辅助功能权限") {
+                Button("permission.accessibility.action") {
                     model.requestAccessibilityPermission()
                 }
                 .buttonStyle(.borderedProminent)
             }
 
             if !model.hasScreenRecordingPermission {
-                Label("需要“屏幕录制”权限来生成窗口缩略图。", systemImage: "rectangle.dashed.badge.record")
+                Label("permission.screenRecording.description", systemImage: "rectangle.dashed.badge.record")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Button("打开屏幕录制设置") {
+                Button("permission.screenRecording.action") {
                     model.openScreenRecordingSettings()
                 }
             }
@@ -63,11 +63,11 @@ private struct MenuContentView: View {
             Divider()
 
             HStack {
-                Button("重新检查权限") {
+                Button("permission.recheck") {
                     model.refreshPermissions()
                 }
                 Spacer()
-                Button("退出") {
+                Button("common.quit") {
                     NSApp.terminate(nil)
                 }
             }

@@ -16,6 +16,7 @@
 		AA0000070000000000000007 /* ScreenshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000070000000000000007 /* ScreenshotService.swift */; };
 		AA0000080000000000000008 /* WindowPreviewPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000080000000000000008 /* WindowPreviewPanel.swift */; };
 		AA0000090000000000000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BB0000110000000000000011 /* Assets.xcassets */; };
+		AA0000100000000000000010 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BB0000120000000000000012 /* Localizable.xcstrings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,6 +31,7 @@
 		BB0000090000000000000009 /* SuperDock.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SuperDock.entitlements; sourceTree = "<group>"; };
 		BB0000100000000000000010 /* SuperDock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SuperDock.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB0000110000000000000011 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BB0000120000000000000012 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		C84352A6300E533400003B58 /* SuperDock.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = SuperDock.xcodeproj; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -118,6 +120,7 @@
 			isa = PBXGroup;
 			children = (
 				BB0000110000000000000011 /* Assets.xcassets */,
+				BB0000120000000000000012 /* Localizable.xcstrings */,
 				BB0000090000000000000009 /* SuperDock.entitlements */,
 			);
 			path = Resources;
@@ -189,6 +192,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA0000090000000000000009 /* Assets.xcassets in Resources */,
+				AA0000100000000000000010 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -8,7 +8,7 @@ final class AppModel: ObservableObject {
     }
     @Published private(set) var hasAccessibilityPermission = AccessibilitySupport.isTrusted
     @Published private(set) var hasScreenRecordingPermission = ScreenshotService.hasPermission
-    @Published private(set) var statusText = "正在等待权限"
+    @Published private(set) var statusText = String(localized: "status.waiting")
 
     private let monitor = DockHoverMonitor()
     private let windowService = WindowService()
@@ -46,8 +46,10 @@ final class AppModel: ObservableObject {
         hasAccessibilityPermission = AccessibilitySupport.isTrusted
         hasScreenRecordingPermission = ScreenshotService.hasPermission
         statusText = hasAccessibilityPermission
-            ? (isEnabled ? "已启用，移动鼠标到 Dock 应用图标" : "已暂停")
-            : "需要辅助功能权限"
+            ? (isEnabled
+                ? String(localized: "status.enabled")
+                : String(localized: "status.paused"))
+            : String(localized: "status.accessibilityRequired")
         updateMonitorState()
     }
 
@@ -67,11 +69,13 @@ final class AppModel: ObservableObject {
         guard didStart else { return }
         if isEnabled, hasAccessibilityPermission {
             monitor.start()
-            statusText = "已启用，移动鼠标到 Dock 应用图标"
+            statusText = String(localized: "status.enabled")
         } else {
             monitor.stop()
             panelController.hide()
-            statusText = hasAccessibilityPermission ? "已暂停" : "需要辅助功能权限"
+            statusText = hasAccessibilityPermission
+                ? String(localized: "status.paused")
+                : String(localized: "status.accessibilityRequired")
         }
     }
 
